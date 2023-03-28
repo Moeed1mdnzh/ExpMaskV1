@@ -2,8 +2,9 @@ import torch
 import numpy as np 
 import cv2 
 
-image = cv2.imread("000003.jpg")
+image = cv2.imread("face.jpg")
 image = cv2.resize(image, (88, 108))
+clone = image.copy()
 state_dict = torch.load("models/LandmarkFinder.pt", map_location="cpu")
 sample = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 sample = np.interp(np.float32(sample), (0, 255), (-1, +1))
@@ -32,4 +33,5 @@ for i in range(0, 10, 2):
   cv2.circle(image, pts, 2, (0, 0, 255), -1)
 
 cv2.imshow("", image)
+cv2.imshow("a", clone)
 cv2.waitKey(0)
