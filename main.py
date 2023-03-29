@@ -6,6 +6,7 @@ from utilities import *
 
 class Main:
     def __init__(self, cam, to_mirror, delay):
+        self.cam_num = cam
         self.cam = Webcam(cam) 
         self.page_a = Page_A((640, 380, 88, 108))
         self.page_b = Page_B
@@ -23,7 +24,7 @@ class Main:
             pos = self.cam.track_pos()
             if pos < 20:
                 pos = 20
-                self.cam.set_pos(int(pos))
+                self.cam.set_pos(pos)
             pos = pos / 10
             self.page_a.render(frame, pos)
             self.cam.show(frame)
@@ -32,20 +33,23 @@ class Main:
                 face = self.page_a.grab(clone)
                 face = cv2.resize(face, (88, 108))
                 face_clone = face.copy()
-                # prep = self.LF.prep(face)
-                # self.cam.cap.release()
-                # cv2.destroyAllWindows()
-                # pred = self.LF.search(prep)
-                # self.LF.draw(face, pred)
-                # prep = self.MG.prep(np.array(pred))
-                # pred = self.MG.generate(prep)
-                # cv2.imwrite("org.jpg", face_clone)
-                # cv2.imwrite("lm.jpg", face)
-                # cv2.imwrite("mg.jpg", pred)
+                prep = self.LF.prep(face)
+                self.cam.cap.release()
+                cv2.destroyAllWindows()
+                print("[INFO]: Predicting Landmarks...")
+                pred = self.LF.search(prep)
+                self.LF.draw(face, pred)
+                prep = self.MG.prep(np.array(pred))
+                print("[INFO]: Generating Mask...")
+                pred = self.MG.generate(prep)
+                self.page_b = Page_B
                 self.page_b =  self.page_b(clone)
-                self.page_b.render([cv2.imread("org.jpg"), 
-                                    cv2.imread("lm.jpg"),
-                                    cv2.imread("mg.jpg")])
+                self.page_b.render([face_clone, 
+                                    face,
+                                    pred])
+                capture = None
+                cv2.destroyAllWindows()
+                self.cam = Webcam(self.cam_num)
                 
                 
                 

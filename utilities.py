@@ -27,9 +27,11 @@ class Webcam:
     def wait(self, delay):
         event = cv2.waitKey(delay)
         if event == ord("c"):
+            print("[INFO]: Capturing...")
             return True
         if event == ord("q"):
             self.destroy()
+            print("[INFO]: Quitting...")
             quit()
 
     def destroy(self):
@@ -51,8 +53,8 @@ class Page_A:
         cv2.rectangle(frame, (self.pts[0], self.pts[1]),
                       (self.pts[0]+self.pts[2], self.pts[1]+self.pts[3]),
                       (100, 200, 100), 2)
-        cv2.rectangle(frame, (188, 362), (188+264, 480), (0, 0, 0), -1)
-        cv2.rectangle(frame, (188, 362), (188+264, 480), (200, 200, 200), 2)
+        cv2.rectangle(frame, (188, 362), (188+264, 470), (0, 0, 0), -1)
+        cv2.rectangle(frame, (188, 362), (188+264, 470), (200, 200, 200), 2)
         cv2.putText(frame, "Press C To Capture", (216, 402), cv2.FONT_HERSHEY_TRIPLEX,
                     0.6, (100, 200, 200), 1)
         cv2.putText(frame, "Press Q To Quit", (232, 442), cv2.FONT_HERSHEY_TRIPLEX,
@@ -114,14 +116,51 @@ class Page_B:
         self.bg = np.zeros((480, 640, 3), dtype=np.uint8)
 
     def render(self, images):
-        cv2.rectangle(self.bg, (12, 20), (628, 200), (200, 200, 200), 4)
-        arrow = cv2.imread("arrow.jpg")
-        images = [cv2.resize(i, (138, 158)) for i in images]
-        arrow = cv2.resize(arrow, (113, 108))
-        self.bg[20: 20+158, 12: 12+138] = images[0]
-        self.bg[20+158: 20+158+108, 12+138: 12+138+113] = arrow
-        cv2.imshow("ExpMaskV1", self.bg)
-        if cv2.waitKey(0) == ord("q"):
+        while True:
+            self.bg = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.rectangle(self.bg, (113, 20), (527, 178), (200, 200, 200), 8)
+            images = [cv2.resize(i, (138, 158)) for i in images]
+            self.bg[20: 20+158, 113: 113+138] = images[0]
+            self.bg[20: 20+158, 113+138: 113+138+138] = images[1]
+            self.bg[20: 20+158, 113+138+138: 113+138+138+138] = images[2]
+            cv2.putText(self.bg, "Face", (140, 228), cv2.FONT_HERSHEY_TRIPLEX,
+                        0.8, (150, 150, 255), 1)
+            cv2.putText(self.bg, "Landmark", (250, 228), cv2.FONT_HERSHEY_TRIPLEX,
+                        0.8, (150, 255, 150), 1)
+            cv2.putText(self.bg, "Mask", (430, 228), cv2.FONT_HERSHEY_TRIPLEX,
+                        0.8, (255, 150, 150), 1)
+            cv2.putText(self.bg, "->", (207, 228), cv2.FONT_HERSHEY_COMPLEX, 
+                        0.7, (200, 200, 200), 3)
+            cv2.putText(self.bg, "->", (393, 228), cv2.FONT_HERSHEY_COMPLEX, 
+                        0.7, (200, 200, 200), 3)
+            cv2.rectangle(self.bg, (170, 350), (445, 480), (40, 40, 40), -1)
+            cv2.rectangle(self.bg, (170, 350), (445, 480), (200, 200, 200), 3)
+            cv2.putText(self.bg, "Press R To Return", (180, 380), cv2.FONT_HERSHEY_TRIPLEX,
+                        0.8, (100, 200, 200), 1)
+            cv2.putText(self.bg, "Press S To Save", (200, 420), cv2.FONT_HERSHEY_TRIPLEX,
+                        0.8, (200, 200, 100), 1)
+            cv2.putText(self.bg, "Press Q To Quit", (212, 460), cv2.FONT_HERSHEY_TRIPLEX,
+                        0.7, (100, 100, 200), 1)
+            cv2.imshow("ExpMaskV1(result)", self.bg)
+            event = cv2.waitKey(1)
+            event = self.check_event(event, images)
+            if event == "r":
+                return "r"
+        
+    def check_event(self, event, images):
+        if event == ord("r"):
+            print("[INFO]: Returning...")
+            return "r"
+        
+        elif event == ord("s"):
+            print("[INFO]: Saving 'Original.jpg'...")
+            cv2.imwrite("Original.jpg", images[0])
+            print("[INFO]: Saving 'Landmarks.jpg'...")
+            cv2.imwrite("Landmarks.jpg", images[1])
+            print("[INFO]: Saving 'Mask.jpg'...")
+            cv2.imwrite("Mask.jpg", images[2])
+            
+        elif event == ord("q"):
             quit()
 
 
