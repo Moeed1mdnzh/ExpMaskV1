@@ -1,5 +1,6 @@
 import cv2
 import torch
+import itertools
 import numpy as np
 
 
@@ -67,48 +68,58 @@ class Page_A:
 
 
 class LandmarkFinder:
-    def __init__(self, model_path):
-        state_dict = torch.load(model_path, map_location="cpu")
-        self.model = torch.nn.Sequential(torch.nn.Conv2d(3, 512, (3, 3), padding=1),
-                                         torch.nn.ReLU(),
-                                         torch.nn.Conv2d(
-                                             512, 512, (3, 3), padding=1),
-                                         torch.nn.ReLU(),
-                                         torch.nn.MaxPool2d((2, 2), stride=2),
-                                         torch.nn.Conv2d(
-                                             512, 256, (3, 3), padding=1),
-                                         torch.nn.ReLU(),
-                                         torch.nn.Conv2d(
-                                             256, 256, (3, 3), padding=1),
-                                         torch.nn.ReLU(),
-                                         torch.nn.MaxPool2d((2, 2), stride=2),
-                                         torch.nn.Flatten(),
-                                         torch.nn.Linear(256*27*22, 10))
-        self.model.load_state_dict(state_dict)
-        self.model.eval()
-
-    def prep(self, image):
-        image = self.bgr2rgb(image)
-        image = self.normalize(image)
-        return torch.tensor(image).permute(2, 0, 1).unsqueeze(dim=0)
+    def __init__(self, mp_face_detection, mp_face_mesh):
+        self.mp_face_detection = mp_face_detection
+        self.mp_face_mesh = mp_face_mesh
+        self.face_detection = self.mp_face_detection.FaceDetection(
+            model_selection=0, min_detection_confidence=0.5)
+        self.face_mesh = self.mp_face_mesh.FaceMesh(
+            static_image_mode=True,
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5)
+        self.lip_pts = [185, 291]  # Pre-calculated
 
     def bgr2rgb(self, image):
         return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    def normalize(self, image):
-        return np.interp(np.float32(image), (0, 255), (-1, +1))
-
-    def search(self, sample):
-        pred = self.model(sample.to(torch.float32))
-        pred = pred.detach().cpu().numpy()
-        pred = np.int32(pred)
-        pred = pred[0]
+    def search(self, image):
+        image = self.bgr2rgb(image)
+        det_result = self.face_detection.process(image)
+        mesh_result = self.face_mesh.process(image)
+        if det_result.detections:
+            for detection in det_result.detections:
+                left_eye = self.mp_face_detection.get_key_point(
+                    detection, self.mp_face_detection.FaceKeyPoint.LEFT_EYE)
+                right_eye = self.mp_face_detection.get_key_point(
+                    detection, self.mp_face_detection.FaceKeyPoint.RIGHT_EYE)
+                nose_tip = self.mp_face_detection.get_key_point(
+                    detection, self.mp_face_detection.FaceKeyPoint.NOSE_TIP)
+                left_eye = [left_eye.x, left_eye.y]
+                right_eye = [right_eye.x, right_eye.y]
+                nose_tip = [nose_tip.x, nose_tip.y]
+                left_eye = [np.int32(np.interp(left_eye[0], (0, 1), (0, 88))), np.int32(
+                    np.interp(left_eye[1], (0, 1), (0, 108)))]
+                right_eye = [np.int32(np.interp(right_eye[0], (0, 1), (0, 88))), np.int32(
+                    np.interp(right_eye[1], (0, 1), (0, 108)))]
+                nose_tip = [np.int32(np.interp(nose_tip[0], (0, 1), (0, 88))), np.int32(
+                    np.interp(nose_tip[1], (0, 1), (0, 108)))]
+        mouths = []
+        if mesh_result.multi_face_landmarks:
+            for face_landmarks in mesh_result.multi_face_landmarks:
+                face_data = face_landmarks.landmark
+                for lip in [185, 291]:
+                    x, y = face_data[lip].x, face_data[lip].y
+                    mouth = [np.int32(np.interp(x, (0, 1), (0, 88))), np.int32(
+                        np.interp(y, (0, 1), (0, 108)))]
+                    mouths.append(mouth)
+        pred = [*left_eye, *right_eye, *nose_tip, *mouths[0], *mouths[1]]
         return pred
 
     def draw(self, image, pred):
         for i in range(0, 10, 2):
             pts = pred[i: i+2]
-            cv2.circle(image, pts, 2, (255, 0, 0), -1)
+            cv2.circle(image, pts, 1, (255, 50, 0), -1)
 
 
 class Page_B:
@@ -129,9 +140,9 @@ class Page_B:
                         0.8, (150, 255, 150), 1)
             cv2.putText(self.bg, "Mask", (430, 228), cv2.FONT_HERSHEY_TRIPLEX,
                         0.8, (255, 150, 150), 1)
-            cv2.putText(self.bg, "->", (207, 228), cv2.FONT_HERSHEY_COMPLEX, 
+            cv2.putText(self.bg, "->", (207, 228), cv2.FONT_HERSHEY_COMPLEX,
                         0.7, (200, 200, 200), 3)
-            cv2.putText(self.bg, "->", (393, 228), cv2.FONT_HERSHEY_COMPLEX, 
+            cv2.putText(self.bg, "->", (393, 228), cv2.FONT_HERSHEY_COMPLEX,
                         0.7, (200, 200, 200), 3)
             cv2.rectangle(self.bg, (170, 350), (445, 480), (40, 40, 40), -1)
             cv2.rectangle(self.bg, (170, 350), (445, 480), (200, 200, 200), 3)
@@ -146,12 +157,12 @@ class Page_B:
             event = self.check_event(event, images)
             if event == "r":
                 return "r"
-        
+
     def check_event(self, event, images):
         if event == ord("r"):
             print("[INFO]: Returning...")
             return "r"
-        
+
         elif event == ord("s"):
             print("[INFO]: Saving 'Original.jpg'...")
             cv2.imwrite("Original.jpg", images[0])
@@ -159,7 +170,7 @@ class Page_B:
             cv2.imwrite("Landmarks.jpg", images[1])
             print("[INFO]: Saving 'Mask.jpg'...")
             cv2.imwrite("Mask.jpg", images[2])
-            
+
         elif event == ord("q"):
             quit()
 
@@ -172,6 +183,7 @@ class Reshape(torch.nn.Module):
     def forward(self, x):
         return x.view(x.size(0), *self.size)
 
+
 class MaskGenerator:
     def __init__(self, model_path):
         state_dict = torch.load(model_path, map_location="cpu")
@@ -181,30 +193,30 @@ class MaskGenerator:
             torch.nn.Upsample(scale_factor=2, mode="bilinear",
                               align_corners=False),
             torch.nn.ConvTranspose2d(512, 512, (3, 3), padding=1),
-            torch.nn.SELU(),
+            torch.nn.ReLU(),
             torch.nn.ConvTranspose2d(512, 256, (3, 3), padding=1),
-            torch.nn.SELU(),
+            torch.nn.ReLU(),
             torch.nn.Upsample(scale_factor=2, mode="bilinear",
                               align_corners=False),
             torch.nn.ConvTranspose2d(256, 256, (3, 3), padding=1),
-            torch.nn.SELU(),
+            torch.nn.ReLU(),
             torch.nn.ConvTranspose2d(256, 128, (3, 3), padding=1),
-            torch.nn.SELU(),
+            torch.nn.ReLU(),
             torch.nn.ConvTranspose2d(128, 3, (1, 1)),
             torch.nn.Tanh()
         )
         self.model.load_state_dict(state_dict)
         self.model.eval()
-        
+
     def prep(self, sample):
         return torch.tensor(sample).reshape(1, 10).to(torch.float32)
-    
+
     def denormalize(self, pred):
         pred = (pred + 1.0)/2.0
         pred = pred.permute(1, 2, 0).detach().cpu().numpy()
         pred = pred * 255
         return pred
-    
+
     def generate(self, sample):
         pred = self.model(sample).squeeze()
         pred = self.denormalize(pred)
