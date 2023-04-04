@@ -37,7 +37,7 @@ python main.py -c 0 -m False -d 1
 After you succeeded to run the file, you should then be facing a similar screen to this
 ![](https://github.com/Moeed1mdnzh/ExpMaskV1/blob/master/images/PageA.jpg) <br/>
 The interaction with the app seems understandable enough except there's as well a slider on top of the screen which is not illustrated in this image which helps you to change the size of the green bounding box in the image.<br/><br/>
-Now once you've pressed ***C*** the program takes the photo in the bounding box and is given to the landmark predictor and mask generator model to present us the following results
+Now once you've pressed ***C*** the program takes the photo in the bounding box and is given to the landmark predictor and mask generator model to present us the following results <br/>
 ![](https://github.com/Moeed1mdnzh/ExpMaskV1/blob/master/images/PageB.jpg)<br/>
 Eventually you can save the results by pressing on ***S*** and the photos will be automatically saved as *Original.jpg*, *Landmarks.jpg* and *Mask.jpg* in the project folder.You could also return to the main screen by pressing ***R*** if you're not comfortable with your current taken image.
 ## Insights
